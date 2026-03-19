@@ -16,11 +16,12 @@ class AuthService {
   static Future<UserCredential?> signInWithGoogle() async {
     try {
       if (kIsWeb) {
-        // Web: ポップアップ方式
+        // Web: リダイレクト方式（GitHub PagesはPopupがブロックされるためRedirectを使用）
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
-        return await _auth.signInWithPopup(googleProvider);
+        await _auth.signInWithRedirect(googleProvider);
+        return null; // リダイレクト後に自動でauthStateChangesが更新される
       } else {
         // モバイル: ネイティブGoogle認証
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();

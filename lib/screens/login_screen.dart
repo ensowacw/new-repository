@@ -20,11 +20,15 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await AuthService.signInWithGoogle();
+      // Web: signInWithRedirectはページ遷移するためここには戻らない
+      // ログイン完了後はFirebaseのauthStateChangesで自動的にHomeScreenへ遷移
     } catch (e) {
-      setState(() {
-        _error = 'ログインに失敗しました。もう一度お試しください。';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'ログインに失敗しました。もう一度お試しください。';
+          _isLoading = false;
+        });
+      }
     }
   }
 

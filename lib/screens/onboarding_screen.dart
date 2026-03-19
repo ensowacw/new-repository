@@ -193,11 +193,8 @@ class _PageContent extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center, // 中央に配置
         children: [
-          // 上部の余白を固定（Spacerをやめて定数に）
-          const SizedBox(height: 40),
-
           // eyebrow
           Text(
             page.eyebrow.toUpperCase(),
@@ -205,7 +202,7 @@ class _PageContent extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // メインコピー（サイズ固定・手動改行で意味ある場所に改行）
+          // メインコピー
           Text(
             page.headline,
             style: const TextStyle(
@@ -222,7 +219,7 @@ class _PageContent extends StatelessWidget {
           Container(width: 32, height: 1, color: AppTheme.divider),
           const SizedBox(height: 24),
 
-          // サブコピー（サイズ固定）
+          // サブコピー
           Text(
             page.body,
             style: const TextStyle(
