@@ -25,7 +25,7 @@ class DefaultFirebaseOptions {
     projectId: 'timeval-e9a0e',
     storageBucket: 'timeval-e9a0e.firebasestorage.app',
     messagingSenderId: '188140482685',
-    appId: '1:188140482685:web:placeholder', // Webアプリ登録後に更新
+    appId: '1:188140482685:web:4d1bc0d87d1fa1c0b34114',
   );
 
   // ── Android ──────────────────────────────────────────────
