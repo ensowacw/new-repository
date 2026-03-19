@@ -7,21 +7,14 @@ import '../models/salary_settings.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 
-// Webのみ: URLクエリパラメータを取得するためのコンディショナルインポート
-import 'url_helper_stub.dart'
-    if (dart.library.html) 'url_helper_web.dart';
-
 class AppProvider extends ChangeNotifier {
   // ── プロジェクト管理 ──────────────────────────────────
   List<Project> _projects = [];
-  int _activeIndex = 0; // 現在表示中のプロジェクトindex
+  int _activeIndex = 0;
 
   // ── ロード完了フラグ ──────────────────────────────────
   bool _isLoaded = false;
   bool get isLoaded => _isLoaded;
-
-  // ── オンボーディング ──────────────────────────────────
-  bool _onboardingDone = false;
 
   // ── タイマー ──────────────────────────────────────────
   Timer? _ticker;
@@ -30,20 +23,15 @@ class AppProvider extends ChangeNotifier {
   List<Project> get projects => List.unmodifiable(_projects);
   int get activeIndex => _activeIndex;
   Project get activeProject => _projects[_activeIndex];
-  bool get onboardingDone => _onboardingDone;
+
+  // onboardingDone は廃止：ログイン状態のみで判定する
+  bool get onboardingDone => false; // 後方互換のため残すが常にfalse
 
   /// 動作中のプロジェクト数
   int get runningCount => _projects.where((p) => p.isRunning).length;
 
   AppProvider() {
     _load();
-  }
-
-  // ── オンボーディング ──────────────────────────────────
-  void completeOnboarding() {
-    _onboardingDone = true;
-    _saveOnboarding();
-    notifyListeners();
   }
 
   // ── プロジェクト切り替え ──────────────────────────────
@@ -70,7 +58,6 @@ class AppProvider extends ChangeNotifier {
 
   // ── タイマー操作 ──────────────────────────────────────
 
-  /// スタート（idle/paused → running）
   void start(int index) {
     if (index < 0 || index >= _projects.length) return;
     final p = _projects[index];
@@ -85,7 +72,6 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 一時停止（running → paused）
   void pause(int index) {
     if (index < 0 || index >= _projects.length) return;
     final p = _projects[index];
@@ -106,12 +92,10 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// リセット（全停止してゼロに戻す）＋セッション保存
   void reset(int index) {
     if (index < 0 || index >= _projects.length) return;
     final p = _projects[index];
 
-    // セッション保存
     List<ProjectSession> newSessions = List.from(p.sessions);
     if (p.elapsed.inSeconds > 0) {
       newSessions.insert(
@@ -126,7 +110,6 @@ class AppProvider extends ChangeNotifier {
           duration: p.elapsed,
         ),
       );
-      // 最新10件のみ保持
       if (newSessions.length > 10) {
         newSessions = newSessions.sublist(0, 10);
       }
@@ -143,7 +126,6 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── プロジェクトのリセット（履歴も含めてクリア）──────
   void clearProject(int index) {
     if (index < 0 || index >= _projects.length) return;
     final p = _projects[index];
@@ -171,16 +153,9 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // ── 永続化 ────────────────────────────────────────────
+  // ── 永続化（プロジェクトデータのみ）────────────────────
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Web: URLに ?reset=1 があればオンボーディングをリセット
-    if (kIsWeb && hasResetParam()) {
-      await prefs.setBool('onboarding_done', false);
-    }
-
-    _onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
     final raw = prefs.getStringList('projects_v2');
     if (raw != null && raw.isNotEmpty) {
@@ -194,7 +169,6 @@ class AppProvider extends ChangeNotifier {
       }).whereType<Project>().toList();
     }
 
-    // 3プロジェクト未満なら補完
     while (_projects.length < 3) {
       _projects.add(Project.createDefault(_projects.length));
     }
@@ -202,7 +176,6 @@ class AppProvider extends ChangeNotifier {
       _projects = _projects.sublist(0, 3);
     }
 
-    // running中のプロジェクトがあればタイマー再開
     if (_projects.any((p) => p.isRunning)) {
       _ensureTicker();
     }
@@ -212,21 +185,14 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> _saveProjects() async {
-    // ローカル保存
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
       'projects_v2',
       _projects.map((p) => jsonEncode(p.toMap())).toList(),
     );
-    // Firestore同期（ログイン中のみ）
     if (AuthService.uid != null) {
       FirestoreService.saveProjects(_projects);
     }
-  }
-
-  Future<void> _saveOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_done', true);
   }
 
   @override

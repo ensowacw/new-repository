@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/app_provider.dart';
 import '../utils/app_theme.dart';
 
 class _OnboardPage {
@@ -67,7 +65,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _finish() {
-    context.read<AppProvider>().completeOnboarding();
+    // onFinishedコールバックで親（_RootScreen）の_onboardDoneを更新する
     widget.onFinished?.call();
   }
 

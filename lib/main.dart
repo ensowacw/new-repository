@@ -55,7 +55,10 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ── ルート画面：スプラッシュ→オンボード→ログイン→メイン ──
+// ── ルート画面 ──────────────────────────────────────────
+// フロー：
+//   未ログイン → スプラッシュ → オンボーディング → ログイン画面
+//   ログイン済み → スプラッシュ → メイン画面（オンボードスキップ）
 class _RootScreen extends StatefulWidget {
   const _RootScreen();
 
@@ -65,6 +68,7 @@ class _RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<_RootScreen> {
   bool _splashDone = false;
+  bool _onboardDone = false; // セッション内メモリのみ・永続化しない
 
   @override
   Widget build(BuildContext context) {
@@ -75,10 +79,12 @@ class _RootScreenState extends State<_RootScreen> {
       );
     }
 
-    return Consumer<AppProvider>(
-      builder: (context, provider, _) {
-        // ② データロード中はローディング表示（onboardingDoneの誤判定を防ぐ）
-        if (!provider.isLoaded) {
+    // ② スプラッシュ完了後 → Firebase Auth状態を監視
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // 読み込み中
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: AppTheme.bg,
             body: Center(
@@ -90,42 +96,24 @@ class _RootScreenState extends State<_RootScreen> {
           );
         }
 
-        // ③ オンボーディング未完了 → 必ず表示（ログイン状態に関わらず）
-        if (!provider.onboardingDone) {
+        final user = snapshot.data;
+
+        // ③ ログイン済み → 直接メイン画面
+        if (user != null) {
+          return const HomeScreen();
+        }
+
+        // ④ 未ログイン：オンボーディング未完了なら表示
+        if (!_onboardDone) {
           return OnboardingScreen(
             onFinished: () {
-              // onFinished は completeOnboarding() 済み（OnboardingScreen内で呼ぶ）
+              setState(() => _onboardDone = true);
             },
           );
         }
 
-        // ④ オンボーディング完了後 → Firebase Auth状態を監視
-        return StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                backgroundColor: AppTheme.bg,
-                body: Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.subtle,
-                  ),
-                ),
-              );
-            }
-
-            final user = snapshot.data;
-
-            // 未ログイン → ログイン画面
-            if (user == null) {
-              return const LoginScreen();
-            }
-
-            // ⑤ ログイン済み → メイン画面
-            return const HomeScreen();
-          },
-        );
+        // ⑤ オンボーディング完了後 → ログイン画面
+        return const LoginScreen();
       },
     );
   }
