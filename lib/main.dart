@@ -75,43 +75,46 @@ class _RootScreenState extends State<_RootScreen> {
       );
     }
 
-    // スプラッシュ完了後 → Firebase Auth状態を監視
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // 読み込み中
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: AppTheme.bg,
-            body: Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppTheme.subtle,
-              ),
-            ),
-          );
-        }
-
-        final user = snapshot.data;
-
-        // 未ログイン → オンボード or ログイン
-        if (user == null) {
-          return Consumer<AppProvider>(
-            builder: (context, provider, _) {
-              if (!provider.onboardingDone) {
-                return OnboardingScreen(
-                  onFinished: () {
-                    provider.completeOnboarding();
-                  },
-                );
-              }
-              return const LoginScreen();
+    // スプラッシュ完了後 → オンボーディング未完了なら必ず表示
+    return Consumer<AppProvider>(
+      builder: (context, provider, _) {
+        // ① オンボーディング未完了 → 最優先で表示（ログイン状態に関わらず）
+        if (!provider.onboardingDone) {
+          return OnboardingScreen(
+            onFinished: () {
+              provider.completeOnboarding();
             },
           );
         }
 
-        // ログイン済み → メイン画面
-        return const HomeScreen();
+        // ② オンボーディング完了後 → Firebase Auth状態を監視
+        return StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snapshot) {
+            // 読み込み中
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                backgroundColor: AppTheme.bg,
+                body: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.subtle,
+                  ),
+                ),
+              );
+            }
+
+            final user = snapshot.data;
+
+            // 未ログイン → ログイン画面
+            if (user == null) {
+              return const LoginScreen();
+            }
+
+            // ③ ログイン済み → メイン画面
+            return const HomeScreen();
+          },
+        );
       },
     );
   }
