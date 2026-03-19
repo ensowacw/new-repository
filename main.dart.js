@@ -84301,7 +84301,7 @@ if(n)B.b.O(o,A.c([B.h1,A.by(l,B.aaR,B.u,l,l,new A.bs(B.bD.hi(0.08),l,l,A.c0(4),l
 else if(d===B.Iq)B.b.O(o,A.c([B.h1,A.by(l,B.aaX,B.u,l,l,new A.bs(B.F.hi(0.06),l,l,A.c0(4),l,l,B.R),l,l,l,B.pa,l,l,l)],k))
 o=A.cD(o,B.G,B.v,B.w)
 b=A.c([o,B.h4,new A.Db(h,b,n?B.bD:l,l),B.eI],k)
-if(e&&j)B.b.O(b,A.c([new A.Sb(s,p,"\u76ee\u6a19 "+m.Ce(f)+"/h \u306b\u5bfe\u3057\u3066 "+B.c.ao(s*100)+"%",l),B.eI],k))
+if(e&&j)B.b.O(b,A.c([new A.Sb(s,p,"\u76ee\u6a19\u6642\u7d66 "+m.Ce(f)+"/h",l),B.eI],k))
 b.push(new A.nB("\u6848\u4ef6\u91d1\u984d",A.eI(g.w,!1),!1,l))
 if(e&&a&&c&&q!=null){k=A.c([B.d4],k)
 if(q>0)k.push(new A.nB("\u76ee\u6a19 "+m.Ce(f)+"/h \u5272\u308c\u307e\u3067","\u6b8b\u308a "+m.a47(q),!1,l))
