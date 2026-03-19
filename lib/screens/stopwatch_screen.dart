@@ -50,8 +50,24 @@ class _TopBar extends StatelessWidget {
     final project = provider.activeProject;
     final runningCount = provider.runningCount;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── キャッチコピー ──────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
+          child: Text(
+            '時間に、値段をつけろ。',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.divider,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 16, 14),
       child: Row(
         children: [
           // ── 左：プロジェクト名タップでシート ──────────
@@ -149,6 +165,8 @@ class _TopBar extends StatelessWidget {
           ),
         ],
       ),
+    ),
+      ],
     );
   }
 

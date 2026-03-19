@@ -1,5 +1,5 @@
-name: real_time_earnings
-description: 自分の時間価値を可視化するアプリ
+name: timeval
+description: 時間に、値段をつけろ。
 publish_to: 'none'
 version: 1.0.0+1
 

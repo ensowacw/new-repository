@@ -15,7 +15,23 @@ class HistoryScreen extends StatelessWidget {
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
         backgroundColor: AppTheme.bg,
-        title: const Text('履歴'),
+        titleSpacing: 20,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '時間に、値段をつけろ。',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.divider,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text('履歴'),
+          ],
+        ),
       ),
       body: SafeArea(
         child: Consumer<AppProvider>(
