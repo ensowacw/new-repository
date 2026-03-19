@@ -42,9 +42,8 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center, // オンボーディングと同じ中央配置
             children: [
-              const SizedBox(height: 40),
-
               // ── eyebrow（オンボーディングと同スタイル）──
               Text(
                 'ACCOUNT',
@@ -81,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: 48),
 
               // ── エラー表示 ─────────────────────────────
               if (_error != null) ...[
@@ -92,12 +91,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppTheme.danger,
                     height: 1.5,
                   ),
-                  textAlign: TextAlign.left,
                 ),
                 const SizedBox(height: 16),
               ],
 
-              // ── Googleログインボタン（オンボーディングの「始める」と同スタイル）──
+              // ── Googleログインボタン ──
               SizedBox(
                 width: double.infinity,
                 child: GestureDetector(
@@ -143,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
 
-              // ── 規約テキスト ────────────────────────────
+              // ── 規約テキスト ──
               const Text(
                 'ログインすることで利用規約とプライバシーポリシーに同意したものとみなします。',
                 style: TextStyle(
@@ -153,8 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-
-              const SizedBox(height: 40),
             ],
           ),
         ),
