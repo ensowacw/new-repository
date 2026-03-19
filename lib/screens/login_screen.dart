@@ -98,10 +98,10 @@ class _LoginScreenState extends State<LoginScreen> {
               // ── Googleログインボタン ──
               SizedBox(
                 width: double.infinity,
+                height: 56,
                 child: GestureDetector(
                   onTap: _isLoading ? null : _signInWithGoogle,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
                     decoration: BoxDecoration(
                       color: _isLoading
                           ? AppTheme.bgSecondary

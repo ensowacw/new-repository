@@ -143,10 +143,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
+                    height: 56,
                     child: GestureDetector(
                       onTap: _next,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
                         decoration: BoxDecoration(
                           color: AppTheme.onSurface,
                           borderRadius: BorderRadius.circular(14),
