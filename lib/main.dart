@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
 import 'providers/app_provider.dart';
+import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/stopwatch_screen.dart';
 import 'screens/history_screen.dart';
 import 'utils/app_theme.dart';
@@ -11,6 +16,9 @@ import 'utils/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ja', null);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -20,7 +28,6 @@ void main() async {
     ),
   );
 
-  // iPhoneは縦向き固定
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -48,16 +55,62 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class _RootScreen extends StatelessWidget {
+// ── ルート画面：スプラッシュ→オンボード→ログイン→メイン ──
+class _RootScreen extends StatefulWidget {
   const _RootScreen();
 
   @override
+  State<_RootScreen> createState() => _RootScreenState();
+}
+
+class _RootScreenState extends State<_RootScreen> {
+  bool _splashDone = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, _) {
-        if (!provider.onboardingDone) {
-          return const OnboardingScreen();
+    // スプラッシュ未完了
+    if (!_splashDone) {
+      return SplashScreen(
+        onComplete: () => setState(() => _splashDone = true),
+      );
+    }
+
+    // スプラッシュ完了後 → Firebase Auth状態を監視
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // 読み込み中
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: AppTheme.bg,
+            body: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.subtle,
+              ),
+            ),
+          );
         }
+
+        final user = snapshot.data;
+
+        // 未ログイン → オンボード or ログイン
+        if (user == null) {
+          return Consumer<AppProvider>(
+            builder: (context, provider, _) {
+              if (!provider.onboardingDone) {
+                return OnboardingScreen(
+                  onFinished: () {
+                    provider.completeOnboarding();
+                  },
+                );
+              }
+              return const LoginScreen();
+            },
+          );
+        }
+
+        // ログイン済み → メイン画面
         return const HomeScreen();
       },
     );
@@ -130,7 +183,6 @@ class _BottomNav extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // 計測中インジケーター
                       if (i == 0)
                         Consumer<AppProvider>(
                           builder: (_, p, __) => p.runningCount > 0
@@ -147,20 +199,17 @@ class _BottomNav extends StatelessWidget {
                         Icon(
                           active ? item.activeIcon : item.icon,
                           size: 22,
-                          color:
-                              active ? AppTheme.onSurface : AppTheme.subtle,
+                          color: active ? AppTheme.onSurface : AppTheme.subtle,
                         ),
                       const SizedBox(height: 2),
                       Text(
                         item.label,
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: active
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: active
-                              ? AppTheme.onSurface
-                              : AppTheme.subtle,
+                          fontWeight:
+                              active ? FontWeight.w600 : FontWeight.w400,
+                          color:
+                              active ? AppTheme.onSurface : AppTheme.subtle,
                         ),
                       ),
                     ],

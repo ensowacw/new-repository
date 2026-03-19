@@ -38,7 +38,8 @@ const _pages = [
 ];
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  final VoidCallback? onFinished;
+  const OnboardingScreen({super.key, this.onFinished});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -67,6 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _finish() {
     context.read<AppProvider>().completeOnboarding();
+    widget.onFinished?.call();
   }
 
   @override

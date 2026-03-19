@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import '../models/salary_settings.dart';
+import '../services/firestore_service.dart';
+import '../services/auth_service.dart';
 
 // Webのみ: URLクエリパラメータを取得するためのコンディショナルインポート
 import 'url_helper_stub.dart'
@@ -205,11 +207,16 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> _saveProjects() async {
+    // ローカル保存
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
       'projects_v2',
       _projects.map((p) => jsonEncode(p.toMap())).toList(),
     );
+    // Firestore同期（ログイン中のみ）
+    if (AuthService.uid != null) {
+      FirestoreService.saveProjects(_projects);
+    }
   }
 
   Future<void> _saveOnboarding() async {
