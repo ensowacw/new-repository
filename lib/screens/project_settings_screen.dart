@@ -31,6 +31,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
   late TextEditingController _daysCtrl;
   late TextEditingController _hoursCtrl;
   late TextEditingController _projectCtrl;
+  late TextEditingController _targetRateCtrl;
 
   @override
   void initState() {
@@ -49,6 +50,8 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
     _hoursCtrl = TextEditingController(text: s.workHoursPerDay.toStringAsFixed(1));
     _projectCtrl = TextEditingController(
         text: s.projectAmount > 0 ? s.projectAmount.toStringAsFixed(0) : '');
+    _targetRateCtrl = TextEditingController(
+        text: s.targetHourlyRate > 0 ? s.targetHourlyRate.toStringAsFixed(0) : '');
   }
 
   @override
@@ -60,6 +63,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
     _daysCtrl.dispose();
     _hoursCtrl.dispose();
     _projectCtrl.dispose();
+    _targetRateCtrl.dispose();
     super.dispose();
   }
 
@@ -73,6 +77,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       workHoursPerDay: (double.tryParse(_hoursCtrl.text) ?? 8.0).clamp(0.5, 24.0),
       useAnnual: _useAnnual,
       projectAmount: double.tryParse(_projectCtrl.text.replaceAll(',', '')) ?? 0,
+      targetHourlyRate: double.tryParse(_targetRateCtrl.text.replaceAll(',', '')) ?? 0,
     );
 
     final provider = context.read<AppProvider>();
@@ -183,6 +188,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
               else
                 _ProjectSection(
                   ctrl: _projectCtrl,
+                  targetRateCtrl: _targetRateCtrl,
                   onChanged: () => setState(() {}),
                 ),
 
@@ -394,8 +400,13 @@ class _MonthlySection extends StatelessWidget {
 // ── 案件単価セクション ───────────────────────────────
 class _ProjectSection extends StatelessWidget {
   final TextEditingController ctrl;
+  final TextEditingController targetRateCtrl;
   final VoidCallback onChanged;
-  const _ProjectSection({required this.ctrl, required this.onChanged});
+  const _ProjectSection({
+    required this.ctrl,
+    required this.targetRateCtrl,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -411,6 +422,22 @@ class _ProjectSection extends StatelessWidget {
           numeric: true,
           onChanged: (_) => onChanged(),
         ),
+        const SizedBox(height: 24),
+        _Label('目標時給（任意）'),
+        const SizedBox(height: 6),
+        const Text(
+          '設定すると「この時給を割るまでの残り時間」をリアルタイム表示',
+          style: TextStyle(fontSize: 12, color: AppTheme.subtle, height: 1.5),
+        ),
+        const SizedBox(height: 10),
+        _Field(
+          ctrl: targetRateCtrl,
+          prefix: '¥',
+          suffix: '/ 時間',
+          hint: '2,000',
+          numeric: true,
+          onChanged: (_) => onChanged(),
+        ),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(14),
@@ -419,7 +446,7 @@ class _ProjectSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Text(
-            'ストップウォッチを動かすと、時間経過とともに「実質時給」がリアルタイムで下がっていきます。効率の価値を数字で実感できます。',
+            'ストップウォッチを動かすと、時間経過とともに「実質時給」がリアルタイムで下がっていきます。目標時給を設定すると損益分岐点までのカウントダウンも表示されます。',
             style: TextStyle(
               fontSize: 13,
               color: AppTheme.subtle,
@@ -474,16 +501,107 @@ class _PreviewBlock extends StatelessWidget {
             const SizedBox(height: 7),
             _Row('1週間（40h）の価値', formatYen(rate * 40)),
           ] else ...[
-            _Row('5時間で完了した場合', '${formatYen(rate / 5)} / h'),
+            // 案件モード：各時間での実質時給 + 警告カラー
+            _ProjectSimRow('5時間', rate / 5),
             const SizedBox(height: 7),
-            _Row('10時間で完了した場合', '${formatYen(rate / 10)} / h'),
+            _ProjectSimRow('10時間', rate / 10),
             const SizedBox(height: 7),
-            _Row('20時間で完了した場合', '${formatYen(rate / 20)} / h'),
+            _ProjectSimRow('20時間', rate / 20),
             const SizedBox(height: 7),
-            _Row('40時間で完了した場合', '${formatYen(rate / 40)} / h'),
+            _ProjectSimRow('40時間', rate / 40),
+            const SizedBox(height: 14),
+            Container(height: 0.5, color: AppTheme.divider),
+            const SizedBox(height: 12),
+            // 損益分岐点ガイド
+            _BreakEvenGuide(projectAmount: rate),
           ],
         ],
       ),
+    );
+  }
+}
+
+// 案件シミュレーション行（時給レベルで色を変える）
+class _ProjectSimRow extends StatelessWidget {
+  final String label;
+  final double hourlyRate;
+  const _ProjectSimRow(this.label, this.hourlyRate);
+
+  // 落ち着いたモノクローム系の色分け
+  Color _color(double r) {
+    if (r < 1000) return AppTheme.danger;
+    if (r < 2000) return const Color(0xFF8E8E93); // グレー：注意
+    if (r < 3000) return AppTheme.secondary;      // ダークグレー：やや注意
+    return AppTheme.onSurface;                    // 黒：問題なし
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _color(hourlyRate);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 3,
+              height: 12,
+              decoration: BoxDecoration(
+                color: c.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$labelで完了',
+              style: const TextStyle(fontSize: 13, color: AppTheme.subtle),
+            ),
+          ],
+        ),
+        Text(
+          '${formatYen(hourlyRate)} / h',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: c,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// 損益分岐点ガイド
+class _BreakEvenGuide extends StatelessWidget {
+  final double projectAmount;
+  const _BreakEvenGuide({required this.projectAmount});
+
+  @override
+  Widget build(BuildContext context) {
+    final h3000 = projectAmount / 3000;
+    final h2000 = projectAmount / 2000;
+    final h1000 = projectAmount / 1000;
+
+    String formatH(double h) {
+      if (h >= 1) return '${h.toStringAsFixed(1)}時間';
+      return '${(h * 60).round()}分';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '超えると時給が下がるライン',
+          style: TextStyle(fontSize: 11, color: AppTheme.subtle, letterSpacing: 0.3),
+        ),
+        const SizedBox(height: 8),
+        _ThresholdRow('時給3,000円割れ', formatH(h3000), AppTheme.secondary),
+        const SizedBox(height: 5),
+        _ThresholdRow('時給2,000円割れ', formatH(h2000), AppTheme.subtle),
+        const SizedBox(height: 5),
+        _ThresholdRow('時給1,000円割れ', formatH(h1000), AppTheme.danger),
+      ],
     );
   }
 }
@@ -511,7 +629,47 @@ class _Row extends StatelessWidget {
       );
 }
 
-// ── 共通パーツ ───────────────────────────────────────
+// \u9598\u5024\u884c\uff08\u640d\u76ca\u5206\u5c90\u70b9\u30ac\u30a4\u30c9\u7528\uff09
+class _ThresholdRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _ThresholdRow(this.label, this.value, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 3,
+              height: 10,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(fontSize: 13, color: AppTheme.subtle)),
+          ],
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.onSurface,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// \u2500\u2500 \u5171\u901a\u30d1\u30fc\u30c4 \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 class _Label extends StatelessWidget {
   final String text;
   const _Label(this.text);

@@ -20,14 +20,12 @@ class HistoryScreen extends StatelessWidget {
       body: SafeArea(
         child: Consumer<AppProvider>(
           builder: (context, provider, _) {
-            // 全プロジェクトのセッションを収集
             final allSessions = <_SessionWithMeta>[];
             for (final p in provider.projects) {
               for (final s in p.sessions) {
                 allSessions.add(_SessionWithMeta(session: s, projectName: p.name));
               }
             }
-            // 新しい順にソート
             allSessions.sort((a, b) =>
                 b.session.startTime.compareTo(a.session.startTime));
 
@@ -40,36 +38,79 @@ class HistoryScreen extends StatelessWidget {
             final totalDuration = allSessions.fold(
                 Duration.zero, (s, e) => s + e.session.duration);
 
-            return Column(
+            // 今週・先週のセッションを計算
+            final now = DateTime.now();
+            final weekStart = now.subtract(Duration(days: now.weekday - 1));
+            final thisWeekStart = DateTime(weekStart.year, weekStart.month, weekStart.day);
+            final lastWeekStart = thisWeekStart.subtract(const Duration(days: 7));
+
+            final thisWeekSessions = allSessions.where((s) =>
+                s.session.startTime.isAfter(thisWeekStart)).toList();
+            final lastWeekSessions = allSessions.where((s) =>
+                s.session.startTime.isAfter(lastWeekStart) &&
+                s.session.startTime.isBefore(thisWeekStart)).toList();
+
+            final thisWeekEarned = thisWeekSessions.fold(0.0, (s, e) => s + e.session.earned);
+            final lastWeekEarned = lastWeekSessions.fold(0.0, (s, e) => s + e.session.earned);
+            final thisWeekDuration = thisWeekSessions.fold(Duration.zero, (s, e) => s + e.session.duration);
+
+            // 日付グループに分けて表示
+            final grouped = _groupByDate(allSessions);
+
+            return ListView(
+              padding: EdgeInsets.zero,
               children: [
+                // ── 全体サマリー ──────────────────────────
                 _SummaryBar(
                   totalEarned: totalEarned,
                   totalDuration: totalDuration,
                   count: allSessions.length,
                 ),
                 Container(height: 0.5, color: AppTheme.divider),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                    itemCount: allSessions.length,
-                    itemBuilder: (context, i) {
-                      final meta = allSessions[i];
-                      final isFirst = i == 0;
-                      final isLast = i == allSessions.length - 1;
-                      return _SessionRow(
-                        meta: meta,
-                        isFirst: isFirst,
-                        isLast: isLast,
-                      );
-                    },
-                  ),
+
+                // ── 週次サマリー ──────────────────────────
+                _WeeklySummary(
+                  thisWeekEarned: thisWeekEarned,
+                  lastWeekEarned: lastWeekEarned,
+                  thisWeekDuration: thisWeekDuration,
+                  thisWeekCount: thisWeekSessions.length,
                 ),
+
+                // ── 日付別セッションリスト ─────────────────
+                ...grouped.entries.map((entry) => _DaySection(
+                      dateLabel: entry.key,
+                      sessions: entry.value,
+                    )),
+                const SizedBox(height: 40),
               ],
             );
           },
         ),
       ),
     );
+  }
+
+  // 日付ごとにグループ化
+  Map<String, List<_SessionWithMeta>> _groupByDate(List<_SessionWithMeta> sessions) {
+    final map = <String, List<_SessionWithMeta>>{};
+    final fmt = DateFormat('M月d日(E)', 'ja');
+    final now = DateTime.now();
+    for (final s in sessions) {
+      final d = s.session.startTime;
+      String label;
+      final diff = DateTime(now.year, now.month, now.day)
+          .difference(DateTime(d.year, d.month, d.day))
+          .inDays;
+      if (diff == 0) {
+        label = '今日  ${fmt.format(d)}';
+      } else if (diff == 1) {
+        label = '昨日  ${fmt.format(d)}';
+      } else {
+        label = fmt.format(d);
+      }
+      map.putIfAbsent(label, () => []).add(s);
+    }
+    return map;
   }
 }
 
@@ -80,7 +121,7 @@ class _SessionWithMeta {
   const _SessionWithMeta({required this.session, required this.projectName});
 }
 
-// ── サマリーバー ─────────────────────────────────────
+// ── 全体サマリーバー ──────────────────────────────────
 class _SummaryBar extends StatelessWidget {
   final double totalEarned;
   final Duration totalDuration;
@@ -136,6 +177,180 @@ class _Stat extends StatelessWidget {
       );
 }
 
+// ── 週次サマリー ─────────────────────────────────────
+class _WeeklySummary extends StatelessWidget {
+  final double thisWeekEarned;
+  final double lastWeekEarned;
+  final Duration thisWeekDuration;
+  final int thisWeekCount;
+
+  const _WeeklySummary({
+    required this.thisWeekEarned,
+    required this.lastWeekEarned,
+    required this.thisWeekDuration,
+    required this.thisWeekCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = thisWeekEarned - lastWeekEarned;
+    final isUp = diff >= 0;
+    final hasPrev = lastWeekEarned > 0;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.bgSecondary,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('今週', style: AppTheme.sectionLabel),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatYen(thisWeekEarned),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w300,
+                  color: AppTheme.onSurface,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (hasPrev)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isUp ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                        size: 13,
+                        color: isUp ? AppTheme.accentGreen : AppTheme.danger,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        '${isUp ? "+" : ""}${formatYen(diff)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isUp ? AppTheme.accentGreen : AppTheme.danger,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        '先週比',
+                        style: TextStyle(fontSize: 11, color: AppTheme.subtle),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(height: 0.5, color: AppTheme.divider),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _WeekChip(label: '時間', value: formatDurationShort(thisWeekDuration)),
+              const SizedBox(width: 20),
+              _WeekChip(label: 'セッション', value: '$thisWeekCount 回'),
+              if (hasPrev) ...[
+                const SizedBox(width: 20),
+                _WeekChip(
+                  label: '先週',
+                  value: formatYen(lastWeekEarned),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekChip extends StatelessWidget {
+  final String label;
+  final String value;
+  const _WeekChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 10, color: AppTheme.subtle, letterSpacing: 0.3)),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.secondary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      );
+}
+
+// ── 日付セクション ────────────────────────────────────
+class _DaySection extends StatelessWidget {
+  final String dateLabel;
+  final List<_SessionWithMeta> sessions;
+  const _DaySection({required this.dateLabel, required this.sessions});
+
+  @override
+  Widget build(BuildContext context) {
+    final dayEarned = sessions.fold(0.0, (s, e) => s + e.session.earned);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(dateLabel, style: AppTheme.sectionLabel),
+              Text(
+                formatYen(dayEarned),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.secondary,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: List.generate(sessions.length, (i) {
+              final isFirst = i == 0;
+              final isLast = i == sessions.length - 1;
+              return _SessionRow(
+                meta: sessions[i],
+                isFirst: isFirst,
+                isLast: isLast,
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── セッション行 ─────────────────────────────────────
 class _SessionRow extends StatelessWidget {
   final _SessionWithMeta meta;
@@ -151,7 +366,6 @@ class _SessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = meta.session;
-    final dateFmt = DateFormat('M/d(E)', 'ja');
     final timeFmt = DateFormat('HH:mm');
 
     return Container(
@@ -167,28 +381,30 @@ class _SessionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            // 左：プロジェクト名・日時
+            // 左：プロジェクト名・時刻
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // プロジェクト名バッジ
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.bgSecondary,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      meta.projectName,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.subtle,
-                        letterSpacing: 0.3,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.bgSecondary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          meta.projectName,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.subtle,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                   const SizedBox(height: 5),
                   Text(
@@ -201,11 +417,8 @@ class _SessionRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${dateFmt.format(s.startTime)}  ${timeFmt.format(s.startTime)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.subtle,
-                    ),
+                    '${timeFmt.format(s.startTime)} 〜 ${timeFmt.format(s.endTime)}',
+                    style: const TextStyle(fontSize: 12, color: AppTheme.subtle),
                   ),
                 ],
               ),
@@ -224,6 +437,17 @@ class _SessionRow extends StatelessWidget {
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
+                const SizedBox(height: 2),
+                // 時給換算
+                if (s.duration.inSeconds > 0)
+                  Text(
+                    '${formatYen(s.earned / (s.duration.inSeconds / 3600))}/h',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.subtle,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
               ],
             ),
           ],

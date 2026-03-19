@@ -184,7 +184,7 @@ class _PageContent extends StatelessWidget {
   const _PageContent({required this.page});
 
   // フォントサイズは全ページ完全固定
-  static const double _headlineSize = 30;
+  static const double _headlineSize = 24;
   static const double _bodySize = 15;
 
   @override

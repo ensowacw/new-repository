@@ -5,15 +5,18 @@ class SalarySettings {
   final SalaryMode mode;
 
   // 時給 / 月給・年収モード
-  final double hourlyAmount;   // 時給直接入力
-  final double monthlyAmount;  // 月給
-  final double annualAmount;   // 年収
+  final double hourlyAmount;
+  final double monthlyAmount;
+  final double annualAmount;
   final int workDaysPerMonth;
   final double workHoursPerDay;
-  final bool useAnnual;        // 月給 or 年収 どちらで入力するか
+  final bool useAnnual;
 
   // 案件単価モード
-  final double projectAmount;  // 案件金額（例: 100000）
+  final double projectAmount;
+
+  // 案件モード：目標時給（設定時のみ損益分岐点を表示）
+  final double targetHourlyRate;
 
   const SalarySettings({
     this.mode = SalaryMode.hourly,
@@ -24,6 +27,7 @@ class SalarySettings {
     this.workHoursPerDay = 8,
     this.useAnnual = false,
     this.projectAmount = 0,
+    this.targetHourlyRate = 0,
   });
 
   /// 時給換算値（時給・月給・年収モード用）
@@ -40,9 +44,12 @@ class SalarySettings {
           return h <= 0 ? 0 : monthlyAmount / h;
         }
       case SalaryMode.project:
-        return 0; // 案件モードでは別計算
+        return 0;
     }
   }
+
+  /// 目標時給が設定されているか
+  bool get hasTargetRate => targetHourlyRate > 0;
 
   /// 設定が有効かどうか
   bool get isValid {
@@ -65,6 +72,7 @@ class SalarySettings {
     double? workHoursPerDay,
     bool? useAnnual,
     double? projectAmount,
+    double? targetHourlyRate,
   }) {
     return SalarySettings(
       mode: mode ?? this.mode,
@@ -75,6 +83,7 @@ class SalarySettings {
       workHoursPerDay: workHoursPerDay ?? this.workHoursPerDay,
       useAnnual: useAnnual ?? this.useAnnual,
       projectAmount: projectAmount ?? this.projectAmount,
+      targetHourlyRate: targetHourlyRate ?? this.targetHourlyRate,
     );
   }
 
@@ -87,6 +96,7 @@ class SalarySettings {
         'workHoursPerDay': workHoursPerDay,
         'useAnnual': useAnnual,
         'projectAmount': projectAmount,
+        'targetHourlyRate': targetHourlyRate,
       };
 
   factory SalarySettings.fromMap(Map<String, dynamic> map) => SalarySettings(
@@ -98,5 +108,6 @@ class SalarySettings {
         workHoursPerDay: (map['workHoursPerDay'] as num?)?.toDouble() ?? 8,
         useAnnual: map['useAnnual'] as bool? ?? false,
         projectAmount: (map['projectAmount'] as num?)?.toDouble() ?? 0,
+        targetHourlyRate: (map['targetHourlyRate'] as num?)?.toDouble() ?? 0,
       );
 }

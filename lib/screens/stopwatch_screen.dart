@@ -562,69 +562,164 @@ class _ProjectModeDisplay extends StatelessWidget {
   final Project project;
   const _ProjectModeDisplay({required this.project});
 
+  // 警告レベルを判定（目標時給ベース）
+  _WarnLevel _warnLevel(double rate, double target) {
+    if (rate <= 0 || target <= 0) return _WarnLevel.none;
+    final ratio = rate / target;
+    if (ratio < 0.5) return _WarnLevel.critical;  // 目標の50%未満：赤
+    if (ratio < 0.8) return _WarnLevel.warning;   // 目標の80%未満：アンバー
+    if (ratio < 1.0) return _WarnLevel.caution;   // 目標未達：薄め
+    return _WarnLevel.good;                       // 目標以上：問題なし
+  }
+
   @override
   Widget build(BuildContext context) {
-    final rate = project.elapsed.inSeconds > 0
+    final hasElapsed = project.elapsed.inSeconds > 0;
+    final currentRate = hasElapsed ? project.projectHourlyRate : 0.0;
+    final displayAmount = hasElapsed
         ? project.projectHourlyRate
         : project.settings.projectAmount;
-    final isLow = project.elapsed.inSeconds > 3600;
+    final target = project.settings.targetHourlyRate;
+    final hasTarget = target > 0;
+    final level = (hasElapsed && hasTarget)
+        ? _warnLevel(currentRate, target)
+        : _WarnLevel.none;
+    final isActive = project.isRunning || project.isPaused;
+
+    // 損益分岐点の計算（目標時給が設定されている場合のみ）
+    final double? breakEvenHours = hasTarget && project.settings.projectAmount > 0
+        ? project.settings.projectAmount / target
+        : null;
+    final elapsedHours = project.elapsed.inSeconds / 3600.0;
+    final double? remainHours = breakEvenHours != null
+        ? breakEvenHours - elapsedHours
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('実質時給', style: AppTheme.sectionLabel),
-        const SizedBox(height: 8),
-        _BigAmount(
-          amount: rate,
-          isActive: project.isRunning,
-          dangerColor: isLow,
-        ),
-        const SizedBox(height: 10),
-        if (project.isRunning || project.isPaused) ...[
-          Row(
-            children: [
-              Icon(
-                Icons.south_rounded,
-                size: 12,
-                color: isLow ? AppTheme.danger : AppTheme.subtle,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '時間とともに下がります',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isLow ? AppTheme.danger : AppTheme.subtle,
+        // ラベル
+        Row(
+          children: [
+            const Text('実質時給', style: AppTheme.sectionLabel),
+            if (level == _WarnLevel.critical) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.danger.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'BELOW TARGET',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.danger,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // メイン金額
+        _BigAmount(
+          amount: displayAmount,
+          isActive: project.isRunning,
+          overrideColor: level == _WarnLevel.critical ? AppTheme.danger : null,
+        ),
+
+        const SizedBox(height: 10),
+
+        // 「時間とともに下がります」サブテキスト
+        if (isActive && hasElapsed) ...[
+          Row(
+            children: [
+              const Icon(
+                Icons.south_rounded,
+                size: 12,
+                color: AppTheme.subtle,
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                '時間とともに下がります',
+                style: TextStyle(fontSize: 12, color: AppTheme.subtle),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
         ],
+
+        // 案件金額チップ
         _InfoChip(
           label: '案件金額',
           value: formatYen(project.settings.projectAmount),
         ),
+
+        // 損益分岐点カウンター（目標時給が設定されている場合のみ表示）
+        if (hasTarget && isActive && breakEvenHours != null && remainHours != null) ...[
+          const SizedBox(height: 6),
+          if (remainHours > 0)
+            _InfoChip(
+              label: '目標時給${formatYen(target).replaceAll(".00", "")}割れまで',
+              value: '残り ${_formatRemainHours(remainHours)}',
+            )
+          else
+            _InfoChip(
+              label: '目標時給割れ',
+              value: '${_formatOverHours(-remainHours)}超過',
+              danger: true,
+            ),
+        ] else if (hasTarget && !isActive) ...[
+          const SizedBox(height: 6),
+          _InfoChip(
+            label: '目標時給',
+            value: '${formatYen(target).replaceAll(".00", "")} / h',
+          ),
+        ],
       ],
     );
   }
+
+  String _formatRemainHours(double h) {
+    if (h >= 1) {
+      final hh = h.floor();
+      final mm = ((h - hh) * 60).round();
+      return mm > 0 ? '$hh時間$mm分' : '$hh時間';
+    } else {
+      return '${(h * 60).round()}分';
+    }
+  }
+
+  String _formatOverHours(double h) {
+    if (h >= 1) {
+      return '${h.floor()}時間${((h % 1) * 60).round()}分';
+    }
+    return '${(h * 60).round()}分';
+  }
 }
+
+enum _WarnLevel { none, good, caution, warning, critical }
 
 // ── 大きな金額表示 ───────────────────────────────────
 class _BigAmount extends StatelessWidget {
   final double amount;
   final bool isActive;
-  final bool dangerColor;
+  final Color? overrideColor;
   const _BigAmount({
     required this.amount,
     required this.isActive,
-    this.dangerColor = false,
+    this.overrideColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final Color color;
-    if (dangerColor) {
-      color = AppTheme.danger;
+    if (overrideColor != null) {
+      color = overrideColor!;
     } else if (!isActive && amount == 0) {
       color = AppTheme.divider;
     } else {
@@ -682,7 +777,8 @@ class _BigAmount extends StatelessWidget {
 class _InfoChip extends StatelessWidget {
   final String label;
   final String value;
-  const _InfoChip({required this.label, required this.value});
+  final bool danger;
+  const _InfoChip({required this.label, required this.value, this.danger = false});
 
   @override
   Widget build(BuildContext context) {
@@ -699,11 +795,11 @@ class _InfoChip extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
-            color: AppTheme.secondary,
+            color: danger ? AppTheme.danger : AppTheme.secondary,
             fontWeight: FontWeight.w500,
-            fontFeatures: [FontFeature.tabularFigures()],
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],

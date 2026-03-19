@@ -11,8 +11,8 @@ class AppTheme {
   static const Color divider = Color(0xFFE5E5EA);     // iOS separator
   static const Color accent = Color(0xFF1C1C1E);      // Black — Apple style
   static const Color accentGreen = Color(0xFF34C759); // iOS green
-  static const Color danger = Color(0xFFFF3B30);      // iOS red
-  static const Color dangerLight = Color(0xFFFFF1F0);
+  static const Color danger = Color(0xFFB5302A);      // deep muted red — not flashy
+  static const Color dangerLight = Color(0xFFF7EFEF);
   static const Color accentLight = Color(0xFFF2F2F7);
 
   // ── TextStyles ────────────────────────────────────────
