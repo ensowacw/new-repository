@@ -584,10 +584,26 @@ class _ProjectModeDisplay extends StatelessWidget {
   _WarnLevel _warnLevel(double rate, double target) {
     if (rate <= 0 || target <= 0) return _WarnLevel.none;
     final ratio = rate / target;
-    if (ratio < 0.5) return _WarnLevel.critical;  // 目標の50%未満：赤
-    if (ratio < 0.8) return _WarnLevel.warning;   // 目標の80%未満：アンバー
-    if (ratio < 1.0) return _WarnLevel.caution;   // 目標未達：薄め
-    return _WarnLevel.good;                       // 目標以上：問題なし
+    if (ratio < 0.5) return _WarnLevel.critical;
+    if (ratio < 0.8) return _WarnLevel.warning;
+    if (ratio < 1.0) return _WarnLevel.caution;
+    return _WarnLevel.good;
+  }
+
+  // warnLevelに対応したバーの色
+  Color _barColor(_WarnLevel level) {
+    switch (level) {
+      case _WarnLevel.good:
+        return const Color(0xFF1C1C1E); // 黒 = 余裕あり
+      case _WarnLevel.caution:
+        return const Color(0xFF8E8E93); // グレー = 注意
+      case _WarnLevel.warning:
+        return const Color(0xFFAA8800); // ゴールド = 警告
+      case _WarnLevel.critical:
+        return const Color(0xFFB5302A); // 深紅 = 危険
+      default:
+        return const Color(0xFFE5E5EA); // 空バー
+    }
   }
 
   @override
@@ -604,6 +620,11 @@ class _ProjectModeDisplay extends StatelessWidget {
         : _WarnLevel.none;
     final isActive = project.isRunning || project.isPaused;
 
+    // 達成率（0.0〜1.0以上も可）
+    final double ratio = (hasElapsed && hasTarget && target > 0)
+        ? (currentRate / target).clamp(0.0, 1.5)
+        : 0.0;
+
     // 損益分岐点の計算（目標時給が設定されている場合のみ）
     final double? breakEvenHours = hasTarget && project.settings.projectAmount > 0
         ? project.settings.projectAmount / target
@@ -613,10 +634,12 @@ class _ProjectModeDisplay extends StatelessWidget {
         ? breakEvenHours - elapsedHours
         : null;
 
+    final barColor = _barColor(level);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ラベル
+        // ── ラベル行 ────────────────────────────────────
         Row(
           children: [
             const Text('実質時給', style: AppTheme.sectionLabel),
@@ -625,16 +648,34 @@ class _ProjectModeDisplay extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.danger.withValues(alpha: 0.10),
+                  color: const Color(0xFFB5302A).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
                   'BELOW TARGET',
                   style: TextStyle(
                     fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.danger,
-                    letterSpacing: 0.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFB5302A),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ] else if (level == _WarnLevel.good) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1C1E).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'ON TRACK',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1C1C1E),
+                    letterSpacing: 0.8,
                   ),
                 ),
               ),
@@ -643,63 +684,66 @@ class _ProjectModeDisplay extends StatelessWidget {
         ),
         const SizedBox(height: 8),
 
-        // メイン金額
+        // ── メイン金額表示 ──────────────────────────────
         _BigAmount(
           amount: displayAmount,
           isActive: project.isRunning,
-          overrideColor: level == _WarnLevel.critical ? AppTheme.danger : null,
+          overrideColor: level == _WarnLevel.critical ? const Color(0xFFB5302A) : null,
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
 
-        // 「時間とともに下がります」サブテキスト
-        if (isActive && hasElapsed) ...[
-          Row(
-            children: [
-              const Icon(
-                Icons.south_rounded,
-                size: 12,
-                color: AppTheme.subtle,
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                '時間とともに下がります',
-                style: TextStyle(fontSize: 12, color: AppTheme.subtle),
-              ),
-            ],
+        // ── 時給達成率プログレスバー（目標時給設定時のみ）──
+        if (hasTarget && hasElapsed) ...[
+          _HourlyRateBar(
+            ratio: ratio,
+            barColor: barColor,
+            label: '目標 ${_formatYenShort(target)}/h に対して ${(ratio * 100).round()}%',
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
         ],
 
-        // 案件金額チップ
+        // ── 案件金額チップ ──────────────────────────────
         _InfoChip(
           label: '案件金額',
           value: formatYen(project.settings.projectAmount),
         ),
 
-        // 損益分岐点カウンター（目標時給が設定されている場合のみ表示）
+        // ── 損益分岐点カウンター（目標時給設定かつ稼働中のみ）──
         if (hasTarget && isActive && breakEvenHours != null && remainHours != null) ...[
           const SizedBox(height: 6),
           if (remainHours > 0)
             _InfoChip(
-              label: '目標時給${formatYen(target).replaceAll(".00", "")}割れまで',
+              label: '目標 ${_formatYenShort(target)}/h 割れまで',
               value: '残り ${_formatRemainHours(remainHours)}',
             )
           else
             _InfoChip(
-              label: '目標時給割れ',
-              value: '${_formatOverHours(-remainHours)}超過',
+              label: '目標時給を割りました',
+              value: '${_formatOverHours(-remainHours)} 超過',
               danger: true,
             ),
-        ] else if (hasTarget && !isActive) ...[
+        ] else if (hasTarget && !isActive && !hasElapsed) ...[
+          // 未開始・目標設定済みの場合はヒント表示
           const SizedBox(height: 6),
           _InfoChip(
             label: '目標時給',
-            value: '${formatYen(target).replaceAll(".00", "")} / h',
+            value: '${_formatYenShort(target)} / h',
           ),
         ],
       ],
     );
+  }
+
+  String _formatYenShort(double amount) {
+    if (amount >= 10000) {
+      final man = (amount / 10000);
+      if (man == man.floorToDouble()) {
+        return '¥${man.floor()}万';
+      }
+      return '¥${man.toStringAsFixed(1)}万';
+    }
+    return '¥${amount.floor().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
   }
 
   String _formatRemainHours(double h) {
@@ -717,6 +761,67 @@ class _ProjectModeDisplay extends StatelessWidget {
       return '${h.floor()}時間${((h % 1) * 60).round()}分';
     }
     return '${(h * 60).round()}分';
+  }
+}
+
+// ── 時給達成率プログレスバー ──────────────────────────
+class _HourlyRateBar extends StatelessWidget {
+  final double ratio; // 0.0〜1.5
+  final Color barColor;
+  final String label;
+  const _HourlyRateBar({
+    required this.ratio,
+    required this.barColor,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final clampedRatio = ratio.clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppTheme.subtle,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.1,
+          ),
+        ),
+        const SizedBox(height: 6),
+        // バー本体
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                // 背景トラック
+                Container(
+                  height: 3,
+                  width: constraints.maxWidth,
+                  decoration: BoxDecoration(
+                    color: AppTheme.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // 進行バー
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOut,
+                  height: 3,
+                  width: constraints.maxWidth * clampedRatio,
+                  decoration: BoxDecoration(
+                    color: barColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 
