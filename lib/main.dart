@@ -57,8 +57,9 @@ class MyApp extends StatelessWidget {
 
 // ── ルート画面 ──────────────────────────────────────────
 // フロー：
-//   未ログイン → スプラッシュ → オンボーディング → ログイン画面
-//   ログイン済み → スプラッシュ → メイン画面（オンボードスキップ）
+//   未ログイン → スプラッシュ → オンボーディング → ログイン
+//   ログイン済み → 直接メイン画面（スプラッシュなし）
+//   ※ Googleリダイレクト後はページ再読み込みになるためスプラッシュを飛ばす
 class _RootScreen extends StatefulWidget {
   const _RootScreen();
 
@@ -68,22 +69,15 @@ class _RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<_RootScreen> {
   bool _splashDone = false;
-  bool _onboardDone = false; // セッション内メモリのみ・永続化しない
+  bool _onboardDone = false;
 
   @override
   Widget build(BuildContext context) {
-    // ① スプラッシュ未完了
-    if (!_splashDone) {
-      return SplashScreen(
-        onComplete: () => setState(() => _splashDone = true),
-      );
-    }
-
-    // ② スプラッシュ完了後 → Firebase Auth状態を監視
+    // まずFirebase Auth状態を確認（ログイン済みならスプラッシュスキップ）
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 読み込み中
+        // Firebase初期化中
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: AppTheme.bg,
@@ -98,12 +92,20 @@ class _RootScreenState extends State<_RootScreen> {
 
         final user = snapshot.data;
 
-        // ③ ログイン済み → 直接メイン画面
+        // ① ログイン済み → スプラッシュなしで直接メイン画面
+        //    （Googleリダイレクト後のページ再読み込みでもここに来る）
         if (user != null) {
           return const HomeScreen();
         }
 
-        // ④ 未ログイン：オンボーディング未完了なら表示
+        // ② 未ログイン → スプラッシュ未完了なら表示
+        if (!_splashDone) {
+          return SplashScreen(
+            onComplete: () => setState(() => _splashDone = true),
+          );
+        }
+
+        // ③ スプラッシュ完了 → オンボーディング未完了なら表示
         if (!_onboardDone) {
           return OnboardingScreen(
             onFinished: () {
@@ -112,7 +114,7 @@ class _RootScreenState extends State<_RootScreen> {
           );
         }
 
-        // ⑤ オンボーディング完了後 → ログイン画面
+        // ④ オンボーディング完了 → ログイン画面
         return const LoginScreen();
       },
     );
