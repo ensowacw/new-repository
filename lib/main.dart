@@ -68,30 +68,41 @@ class _RootScreenState extends State<_RootScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // スプラッシュ未完了
+    // ① スプラッシュ未完了
     if (!_splashDone) {
       return SplashScreen(
         onComplete: () => setState(() => _splashDone = true),
       );
     }
 
-    // スプラッシュ完了後 → オンボーディング未完了なら必ず表示
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        // ① オンボーディング未完了 → 最優先で表示（ログイン状態に関わらず）
+        // ② データロード中はローディング表示（onboardingDoneの誤判定を防ぐ）
+        if (!provider.isLoaded) {
+          return const Scaffold(
+            backgroundColor: AppTheme.bg,
+            body: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.subtle,
+              ),
+            ),
+          );
+        }
+
+        // ③ オンボーディング未完了 → 必ず表示（ログイン状態に関わらず）
         if (!provider.onboardingDone) {
           return OnboardingScreen(
             onFinished: () {
-              provider.completeOnboarding();
+              // onFinished は completeOnboarding() 済み（OnboardingScreen内で呼ぶ）
             },
           );
         }
 
-        // ② オンボーディング完了後 → Firebase Auth状態を監視
+        // ④ オンボーディング完了後 → Firebase Auth状態を監視
         return StreamBuilder<User?>(
           stream: FirebaseAuth.instance.authStateChanges(),
           builder: (context, snapshot) {
-            // 読み込み中
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 backgroundColor: AppTheme.bg,
@@ -111,7 +122,7 @@ class _RootScreenState extends State<_RootScreen> {
               return const LoginScreen();
             }
 
-            // ③ ログイン済み → メイン画面
+            // ⑤ ログイン済み → メイン画面
             return const HomeScreen();
           },
         );

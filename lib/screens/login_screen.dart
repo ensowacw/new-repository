@@ -31,108 +31,75 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // オンボーディングと同じ白背景
       backgroundColor: AppTheme.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Spacer(flex: 3),
+              const SizedBox(height: 40),
 
-              // ── ロゴ＋タイトル ─────────────────────
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppTheme.onSurface,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    'assets/icon/app_icon.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.timer_outlined,
-                      size: 36,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              // ── eyebrow（オンボーディングと同スタイル）──
+              Text(
+                'ACCOUNT',
+                style: AppTheme.sectionLabel,
               ),
               const SizedBox(height: 20),
+
+              // ── メインコピー（オンボーディングと同フォント）──
               const Text(
-                'Timeval',
+                'はじめましょう。',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.onSurface,
-                  letterSpacing: -0.8,
+                  height: 1.35,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 28),
+
+              // 仕切り線（オンボーディングと同じ）
+              Container(width: 32, height: 1, color: AppTheme.divider),
+              const SizedBox(height: 24),
+
+              // ── サブコピー ─────────────────────────────
               const Text(
-                '時間に、値段をつけろ。',
+                'Googleアカウントでログインすると、\nどのデバイスからでもデータにアクセスできます。',
                 style: TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.subtle,
-                  letterSpacing: 0.3,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: AppTheme.secondary,
+                  height: 1.8,
+                  letterSpacing: 0.1,
                 ),
               ),
 
-              const Spacer(flex: 2),
+              const Spacer(),
 
-              // ── 説明文 ─────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgSecondary,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FeatureRow(
-                      icon: Icons.timer_outlined,
-                      text: 'リアルタイムで稼いだ金額を計測',
-                    ),
-                    SizedBox(height: 12),
-                    _FeatureRow(
-                      icon: Icons.sync_rounded,
-                      text: 'どのデバイスからでもデータを同期',
-                    ),
-                    SizedBox(height: 12),
-                    _FeatureRow(
-                      icon: Icons.lock_outline_rounded,
-                      text: 'データは安全にクラウドへ保存',
-                    ),
-                  ],
-                ),
-              ),
-
-              const Spacer(flex: 2),
-
-              // ── エラー表示 ─────────────────────────
+              // ── エラー表示 ─────────────────────────────
               if (_error != null) ...[
                 Text(
                   _error!,
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppTheme.danger,
+                    height: 1.5,
                   ),
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
               ],
 
-              // ── Googleログインボタン ───────────────
+              // ── Googleログインボタン（オンボーディングの「始める」と同スタイル）──
               SizedBox(
                 width: double.infinity,
                 child: GestureDetector(
                   onTap: _isLoading ? null : _signInWithGoogle,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
                     decoration: BoxDecoration(
                       color: _isLoading
                           ? AppTheme.bgSecondary
@@ -158,10 +125,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               Text(
                                 'Googleで始める',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
                                   color: Colors.white,
-                                  letterSpacing: 0.2,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ],
@@ -171,17 +138,19 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               const SizedBox(height: 16),
+
+              // ── 規約テキスト ────────────────────────────
               const Text(
                 'ログインすることで利用規約とプライバシーポリシーに同意したものとみなします。',
                 style: TextStyle(
                   fontSize: 11,
                   color: AppTheme.subtle,
-                  height: 1.5,
+                  height: 1.6,
                 ),
                 textAlign: TextAlign.center,
               ),
 
-              const Spacer(flex: 1),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -190,39 +159,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _FeatureRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _FeatureRow({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppTheme.subtle),
-        const SizedBox(width: 12),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppTheme.secondary,
-            height: 1.4,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Google "G" アイコン（SVGなしで描画）
+// Google "G" アイコン
 class _GoogleIcon extends StatelessWidget {
   const _GoogleIcon();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 20,
-      height: 20,
+      width: 22,
+      height: 22,
       decoration: const BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
@@ -231,7 +176,7 @@ class _GoogleIcon extends StatelessWidget {
         child: Text(
           'G',
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
             color: Color(0xFF4285F4),
           ),

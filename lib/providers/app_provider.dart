@@ -16,6 +16,10 @@ class AppProvider extends ChangeNotifier {
   List<Project> _projects = [];
   int _activeIndex = 0; // 現在表示中のプロジェクトindex
 
+  // ── ロード完了フラグ ──────────────────────────────────
+  bool _isLoaded = false;
+  bool get isLoaded => _isLoaded;
+
   // ── オンボーディング ──────────────────────────────────
   bool _onboardingDone = false;
 
@@ -203,6 +207,7 @@ class AppProvider extends ChangeNotifier {
       _ensureTicker();
     }
 
+    _isLoaded = true;
     notifyListeners();
   }
 
