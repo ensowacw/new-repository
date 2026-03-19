@@ -698,7 +698,7 @@ class _ProjectModeDisplay extends StatelessWidget {
           _HourlyRateBar(
             ratio: ratio,
             barColor: barColor,
-            label: '目標 ${_formatYenShort(target)}/h に対して ${(ratio * 100).round()}%',
+            label: '目標時給 ${_formatYenShort(target)}/h',
           ),
           const SizedBox(height: 14),
         ],
